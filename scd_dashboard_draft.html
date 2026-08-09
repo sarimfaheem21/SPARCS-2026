@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title> Sickle Cell Disease Hospitalization &amp; Utilization Surveillance</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<style>
+@font-face{ font-family:'NYU Perstare'; src:url('fonts/NYUPerstare-Regular.otf') format('opentype'); font-weight:400; font-style:normal; font-display:swap; }
+@font-face{ font-family:'NYU Perstare'; src:url('fonts/NYUPerstare-Medium.otf') format('opentype'); font-weight:500; font-style:normal; font-display:swap; }
+@font-face{ font-family:'NYU Perstare'; src:url('fonts/NYUPerstare-Bold.otf') format('opentype'); font-weight:700; font-style:normal; font-display:swap; }
+@font-face{ font-family:'NYU Perstare'; src:url('fonts/NYUPerstare-Ultra.otf') format('opentype'); font-weight:800; font-style:normal; font-display:swap; }
+@font-face{ font-family:'NYU Perstare'; src:url('fonts/NYUPerstare-Black.otf') format('opentype'); font-weight:900; font-style:normal; font-display:swap; }
+@keyframes sweepDonut{ from{ stroke-dasharray:0 100; } to{ stroke-dasharray:56 44; } }
+.donut-sweep{ animation:sweepDonut 1s ease-out .3s both; }
+@keyframes growBar{ from{ width:0; } }
+.cfill, .agefill{ animation:growBar 1s ease-out both; }
+@media (prefers-reduced-motion:reduce){
+  .trend-draw{ stroke-dasharray:none; stroke-dashoffset:0; animation:none; }
+  .area-fade, .donut-sweep, .cfill, .agefill{ animation:none; width:revert; }
+}
+
+:root{
+  --bg:#100C14; --panel:#1C1523; --panel2:#241A2E;
+  --ink:#F2ECE6; --muted:#AB9FB4; --faint:#6E6178;
+  --border:rgba(242,236,230,0.08); --border2:rgba(242,236,230,0.16);
+  --burgundy:#9C3245; --burgundy-l:#C1546A; --burgundy-dim:rgba(156,50,69,0.16);
+  --violet:#7C5CAE; --violet-dim:rgba(124,92,174,0.16);
+  --gold:#C9A24B; --gold-dim:rgba(201,162,75,0.16);
+  --display:'NYU Perstare','Montserrat',sans-serif;
+  --sans:'NYU Perstare','Montserrat',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{ background:var(--bg); background-image:radial-gradient(ellipse at 20% -10%, #1F1428 0%, transparent 55%); color:var(--ink); font-family:var(--sans); line-height:1.5; overflow-x:hidden; position:relative; }
+.wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 24px 80px;}
+a{color:inherit;}
+
+.mark-row{position:fixed; top:74px; right:26px; z-index:30; display:flex; flex-direction:column; align-items:center; gap:12px;}
+.etch-mark{display:flex; flex-direction:column; align-items:center; text-decoration:none; cursor:pointer; padding:2px;}
+.etch-main{ font-family:var(--display); font-weight:900; font-size:15px; text-align:center; line-height:1.05; letter-spacing:.01em; color:transparent; background:linear-gradient(180deg,#F2ECE6,#B8ADC4); -webkit-background-clip:text; background-clip:text; text-shadow:0 1px 0 rgba(0,0,0,0.55), 0 -1px 0 rgba(255,255,255,0.06); filter:drop-shadow(0 0 0px rgba(156,50,69,0)); transition:filter .25s ease, transform .25s ease; }
+.etch-sub{font-family:var(--mono); font-size:7.5px; letter-spacing:.1em; text-align:center; color:var(--faint); margin-top:3px; line-height:1.3;}
+.etch-mark:hover .etch-main{filter:drop-shadow(0 0 8px rgba(156,50,69,0.65)) drop-shadow(0 0 18px rgba(156,50,69,0.3)); transform:translateY(-1px);}
+.etch-mark:hover .etch-sub{color:var(--burgundy-l);}
+.etch-divider{width:30px; height:1px; background:var(--border2);}
+
+nav{position:sticky; top:0; z-index:20; background:rgba(16,12,20,0.88); backdrop-filter:blur(10px); border-bottom:1px solid var(--border); padding:14px 24px;}
+.navrow{max-width:1180px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;}
+.navrow .brand{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint);}
+.navlinks{display:flex; gap:22px; font-size:12.5px; margin-right:100px;}
+.navlinks a{color:var(--muted); text-decoration:none; padding-bottom:3px; border-bottom:1px solid transparent; transition:.15s;}
+.navlinks a:hover{color:var(--ink); border-color:var(--burgundy-l);}
+@media (max-width:900px){
+  .navlinks{margin-right:0;}
+  .mark-row{position:absolute; top:70px; right:12px; flex-direction:row; gap:14px; transform:scale(0.82); transform-origin:top right;}
+  .etch-divider{display:none;}
+  .hero{padding-top:70px;}
+}
+
+.hero{padding:52px 0 40px; border-bottom:1px solid var(--border);}
+.status-flag{display:inline-flex; align-items:stretch; margin-bottom:22px; border-radius:5px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.35); font-family:var(--mono); font-size:11px; letter-spacing:.04em;}
+.status-flag .tab{background:var(--burgundy); color:#F2ECE6; padding:5px 11px; font-weight:500; display:flex; align-items:center; gap:6px; text-transform:uppercase;}
+.status-flag .tab::before{content:''; width:6px; height:6px; border-radius:50%; background:#F2ECE6;}
+.status-flag .body{background:var(--panel2); color:var(--muted); padding:5px 12px; border:1px solid var(--border); border-left:none;}
+h1{font-family:var(--display); font-weight:900; font-size:42px; letter-spacing:-0.02em; line-height:1.06; max-width:820px;}
+h1 em{font-style:normal; font-weight:600; color:var(--burgundy-l);}
+.sub{color:var(--muted); font-size:15px; margin-top:16px; max-width:600px;}
+.hero-stats{display:flex; gap:48px; margin-top:38px; flex-wrap:wrap;}
+.hstat .num{font-family:var(--display); font-size:44px; font-weight:900; letter-spacing:-0.02em; font-variant-numeric:tabular-nums;}
+.hstat .lbl{font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); margin-top:4px;}
+@keyframes riseIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+.fade-in{animation:riseIn .6s ease-out both;}
+.fade-in.d1{animation-delay:.05s;} .fade-in.d2{animation-delay:.15s;} .fade-in.d3{animation-delay:.28s;} .fade-in.d4{animation-delay:.4s;}
+@media (prefers-reduced-motion:reduce){ .fade-in{animation:none; opacity:1;} }
+@media (max-width:900px){ h1{font-size:31px;} .hero-stats{gap:28px;} }
+
+section{padding:44px 0; border-bottom:1px solid var(--border);}
+.seclabel{font-family:var(--display); font-weight:700; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--burgundy-l); margin-bottom:8px; display:flex; align-items:center; gap:10px;}
+.seclabel::after{content:''; flex:1; height:1px; background:var(--border); max-width:120px;}
+.sechead{font-family:var(--display); font-weight:700; font-size:23px; letter-spacing:-0.01em;}
+.secnote{color:var(--muted); font-size:13px; margin-top:6px; margin-bottom:22px; max-width:640px;}
+.panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:24px;}
+.panel h3{font-family:var(--display); font-weight:600; font-size:15px; margin-bottom:14px;}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:22px;}
+.statline{display:flex; justify-content:space-between; align-items:baseline; padding:11px 0; border-top:1px solid var(--border); font-size:13px;}
+.statline:first-of-type{border-top:none;}
+.statline b{font-family:var(--mono); font-weight:500;}
+.flagbox{ background:rgba(242,236,230,0.02); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; color:var(--muted); margin-top:16px; line-height:1.6; }
+.flagbox .note-label{ display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:6px; }
+.flagbox b{color:var(--ink); font-weight:500;}
+@media (max-width:900px){ .two{grid-template-columns:1fr;} }
+
+.slider-wrap{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 26px 18px; position:relative;}
+.slider-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
+.slider-readout{font-family:var(--mono); font-size:13px;}
+.slider-readout b{color:var(--burgundy-l);}
+.slider-metrics{display:flex; gap:26px; font-size:12px; color:var(--muted); flex-wrap:wrap;}
+.slider-metrics b{color:var(--gold); font-family:var(--mono); font-weight:500;}
+.legend{display:flex; gap:18px; font-size:12px; color:var(--muted); margin:0 0 4px; flex-wrap:wrap;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.legend i{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.yr-ticks{display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--faint); margin-top:2px;}
+.track-wrap{position:relative; height:40px; margin:6px 10px 8px;}
+.track{position:absolute; top:18px; left:0; right:0; height:5px; background:var(--panel2); border-radius:3px;}
+.track-fill{position:absolute; top:18px; height:5px; border-radius:3px; background:linear-gradient(90deg,var(--burgundy),var(--violet)); box-shadow:0 0 10px rgba(156,50,69,0.5);}
+.handle{position:absolute; top:10px; width:20px; height:20px; border-radius:50%; background:var(--ink); border:3px solid var(--burgundy); transform:translateX(-10px); cursor:grab; touch-action:none; box-shadow:0 2px 8px rgba(0,0,0,0.5); transition:box-shadow .15s;}
+.handle:active{cursor:grabbing; box-shadow:0 0 0 6px var(--burgundy-dim);}
+.handle-bubble{position:absolute; bottom:32px; left:50%; transform:translateX(-50%) scale(.85); background:var(--ink); color:var(--bg); font-family:var(--mono); font-size:11px; font-weight:500; padding:3px 8px; border-radius:6px; white-space:nowrap; opacity:0; transition:opacity .12s, transform .12s; pointer-events:none;}
+.handle-bubble.show{opacity:1; transform:translateX(-50%) scale(1);}
+.pt{cursor:pointer; transition:r .12s;}
+
+.chart-tip{position:absolute; pointer-events:none; opacity:0; transition:opacity .12s; background:var(--panel2); border:1px solid var(--border2); border-radius:8px; padding:9px 12px; font-size:11.5px; box-shadow:0 6px 20px rgba(0,0,0,0.5); z-index:5; max-width:220px; line-height:1.5;}
+.chart-tip.show{opacity:1;}
+.chart-tip .tip-yr{font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;}
+.chart-tip .tip-row{display:flex; justify-content:space-between; gap:16px; margin-bottom:2px;}
+.chart-tip .tip-row .k{color:var(--muted);}
+.chart-tip .tip-row .v{font-family:var(--mono); font-weight:500; color:var(--ink);}
+
+.geo-grid{display:grid; grid-template-columns:1.15fr 1fr; gap:22px;}
+.map-panel{position:relative;}
+.map-tip{position:absolute; pointer-events:none; opacity:0; transition:opacity .12s; background:var(--panel2); border:1px solid var(--border2); border-radius:10px; padding:12px 14px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,0.55); z-index:6; max-width:230px; line-height:1.55;}
+.map-tip.show{opacity:1;}
+.map-tip .mt-name{font-family:var(--display); font-weight:700; font-size:14px; margin-bottom:5px; color:var(--ink);}
+.map-tip .mt-row{display:flex; justify-content:space-between; gap:14px; margin-bottom:2px;}
+.map-tip .mt-row .k{color:var(--muted); font-size:11px;}
+.map-tip .mt-row .v{font-family:var(--mono); font-size:11px; color:var(--ink);}
+.map-tip .mt-note{margin-top:7px; font-size:10.5px; color:var(--faint); line-height:1.5;}
+.county-list{display:flex; flex-direction:column; gap:4px;}
+.county-row{display:grid; grid-template-columns:118px 1fr 52px; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; cursor:pointer; transition:.15s; border:1px solid transparent;}
+.county-row:hover{background:var(--panel2);}
+.county-row.active{background:var(--violet-dim); border-color:var(--violet);}
+.county-row .lbl{font-size:12.5px;}
+.ctrack{height:8px; background:var(--panel2); border-radius:4px; overflow:hidden;}
+.cfill{height:100%; border-radius:4px; background:var(--violet);}
+.county-row .num{font-family:var(--mono); font-size:11px; color:var(--muted); text-align:right;}
+.drill{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px;}
+.drill .dname{font-family:var(--display); font-weight:700; font-size:19px;}
+.drill .dsub{font-family:var(--mono); font-size:11px; color:var(--faint); margin-bottom:14px;}
+.dstat{display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; border-top:1px solid var(--border); font-size:13px;}
+.dstat:first-of-type{border-top:none;}
+.dstat b{font-family:var(--mono); font-weight:500;}
+.dcompare{font-size:11px; color:var(--faint); text-align:right; margin-top:-4px;}
+@media (max-width:900px){ .geo-grid{grid-template-columns:1fr;} }
+
+.age-row{display:grid; grid-template-columns:78px 1fr 42px; align-items:center; gap:10px; margin-bottom:9px; font-size:12.5px;}
+.agefill{background:var(--burgundy);}
+.anum{font-family:var(--mono); color:var(--muted); text-align:right; font-size:11.5px;}
+
+footer{padding:26px 0 0; font-size:12px; color:var(--faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+.ip-panel{margin-top:24px; padding-top:22px; border-top:1px solid var(--border); display:grid; grid-template-columns:repeat(3,1fr); gap:28px;}
+.ip-head{font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;}
+.ip-panel p{font-size:11.5px; line-height:1.6; color:var(--muted);}
+@media (max-width:900px){ .ip-panel{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div id="watermark" style="position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;">
+  <svg id="wm-svg" viewBox="0 0 800 600" style="position:absolute; top:8%; left:50%; width:1400px; opacity:0.035; transform:translateX(-50%);">
+    <path id="wm-ny-path" fill="none" stroke="#F2ECE6" stroke-width="1.2"/>
+  </svg>
+  <div style="position:absolute; bottom:6%; right:4%; font-family:var(--mono); font-size:11px; letter-spacing:.25em; color:var(--faint); opacity:0.4; writing-mode:vertical-rl;">ISEE LAB · NYU SCHOOL OF GLOBAL PUBLIC HEALTH</div>
+</div>
+
+<div class="mark-row">
+  <a href="https://publichealth.nyu.edu/w/isee" target="_blank" class="etch-mark">
+    <div class="etch-main">ISEE<br>LAB</div>
+    <div class="etch-sub">NYU · GPH</div>
+  </a>
+  <div class="etch-divider"></div>
+  <a href="https://publichealth.nyu.edu/" target="_blank" class="etch-mark">
+    <div class="etch-main">NYU</div>
+    <div class="etch-sub">GLOBAL PUBLIC HEALTH</div>
+  </a>
+</div>
+
+<nav><div class="navrow">
+  <div class="brand">ISEE Lab: SCD Surveillance</div>
+  <div class="navlinks">
+    <a href="#trend">Severity &amp; risk</a>
+    <a href="#geo">Geographic</a>
+    <a href="#demo">Demographic</a>
+    <a href="#util">Utilization</a>
+  </div>
+</div></nav>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="status-flag fade-in d1">
+      <span class="tab">Working draft 10/08/2026</span>
+      <span class="body">Revised upon ISEE administration review</span>
+    </div>
+    <h1 class="fade-in d2">Sickle Cell Disease (SCD) <br><em>Hospitalization &amp; Utilization</em> Surveillance</h1>
+    <div class="sub fade-in d3">Built from the SPARCS SCD patient-year extract, 2014–2024. </div>
+    <div class="hero-stats fade-in d4">
+      <div class="hstat"><div class="num" id="ctr-rows">0</div><div class="lbl">Patient-years</div></div>
+      <div class="hstat"><div class="num" id="ctr-patients">0</div><div class="lbl">Unique patients</div></div>
+      <div class="hstat"><div class="num">357</div><div class="lbl">NY facilities</div></div>
+      <div class="hstat"><div class="num">11</div><div class="lbl">Years, 2014–24</div></div>
+    </div>
+  </section>
+
+  <section id="trend">
+    <div class="seclabel">Severity &amp; outcomes</div>
+    <div class="sechead">Drag the range to filter, click a county below to re-slice</div>
+    <div class="secnote">Share of inpatient stays classified major/extreme on APR-DRG severity of illness and risk of mortality. Click any point for that year's detail. Risk of mortality is a coding-based proxy, not a linked death outcome.</div>
+    <div class="slider-wrap">
+      <div class="slider-top">
+        <div class="slider-readout">Showing: <b id="trend-title" style="color:var(--violet)">Statewide</b> · window <b id="yr-range">2014 – 2024</b></div>
+        <div class="slider-metrics">
+          <div>IP records in window <b id="m-n">-</b></div>
+          <div>Avg. major severity <b id="m-sev">-</b></div>
+          <div>Avg. major mortality-risk <b id="m-rom">-</b></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--burgundy)"></i> Major/extreme severity of illness</span>
+        <span><i style="background:var(--gold)"></i> Major/extreme risk of mortality (proxy)</span>
+      </div>
+      <div id="chart-tip" class="chart-tip"></div>
+      <svg id="trendsvg" viewBox="0 0 1080 220" style="width:100%; height:auto; margin-top:8px;">
+        <defs>
+          <linearGradient id="sevgrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#9C3245" stop-opacity="0.30"/>
+            <stop offset="100%" stop-color="#9C3245" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="romgrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#C9A24B" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#C9A24B" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g stroke="rgba(242,236,230,0.08)" stroke-width="1">
+          <line x1="60" y1="20" x2="1050" y2="20"/>
+          <line x1="60" y1="80" x2="1050" y2="80"/>
+          <line x1="60" y1="140" x2="1050" y2="140"/>
+          <line x1="60" y1="180" x2="1050" y2="180"/>
+        </g>
+        <text x="46" y="24" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#6E6178">60%</text>
+        <text x="46" y="84" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#6E6178">40%</text>
+        <text x="46" y="144" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#6E6178">20%</text>
+        <text x="46" y="184" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#6E6178">0%</text>
+        <polygon id="sevarea" class="area-fade" fill="url(#sevgrad)" points=""/>
+        <polygon id="romarea" class="area-fade" fill="url(#romgrad)" points=""/>
+        <polyline id="sevline" class="trend-draw" fill="none" stroke="#9C3245" stroke-width="2.5" points=""/>
+        <polyline id="romline" class="trend-draw" fill="none" stroke="#C9A24B" stroke-width="2.5" points=""/>
+        <g id="dots"></g>
+        <rect id="dim-left" x="60" y="10" width="0" height="170" fill="#100C14" opacity="0.55"/>
+        <rect id="dim-right" x="60" y="10" width="0" height="170" fill="#100C14" opacity="0.55"/>
+        <g id="yrlabels" font-family="IBM Plex Mono" font-size="10.5" fill="#AB9FB4"></g>
+      </svg>
+      <div class="track-wrap" id="trackwrap">
+        <div class="track"></div>
+        <div class="track-fill" id="trackfill"></div>
+        <div class="handle" id="h0"><div class="handle-bubble" id="b0"></div></div>
+        <div class="handle" id="h1"><div class="handle-bubble" id="b1"></div></div>
+      </div>
+      <div class="yr-ticks"><span>2014</span><span>2016</span><span>2018</span><span>2020</span><span>2022</span><span>2024</span></div>
+    </div>
+    <div class="flagbox">
+      <span class="note-label">Interpretation</span>
+      The 2020–2022 rise tracks with the JAMA finding (statewide inpatient sample, 2009–22). Whether it reflects true acuity increase, changed admission thresholds, or COVID-era coding shifts isn't distinguishable from this data alone. County-level rates below ~300 inpatient records per year (e.g. Staten Island) are unstable since single patients move the percentage.
+    </div>
+  </section>
+
+  <section id="geo">
+    <div class="seclabel">Geographic distribution</div>
+    <div class="sechead">Click a county: on the map or in the list</div>
+    <div class="secnote">Choropleth shaded by patient-year volume (square-root scale so upstate counties stay visible against NYC's dominance). Clicking re-slices the trend chart above and the drill panel here.</div>
+    <div class="geo-grid">
+      <div class="panel map-panel" style="padding:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h3 style="margin:0;">New York State: patient-year volume</h3>
+          <div id="map-hover" style="font-family:var(--mono); font-size:11px; color:var(--muted);"></div>
+        </div>
+        <svg id="nymap" viewBox="0 0 600 460" style="width:100%; height:auto;"></svg>
+        <div id="map-tip" class="map-tip"></div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; color:var(--faint);">
+          <span>Fewer</span>
+          <div style="flex:0 0 120px; height:8px; border-radius:4px; background:linear-gradient(90deg,#241A2E,#9C3245);"></div>
+          <span>More patient-years</span>
+        </div>
+        <p style="margin-top:12px; font-size:11.5px; line-height:1.6; color:var(--muted);">
+          Each county is shaded by its total SCD patient-year records, 2014–2024. Darker burgundy marks higher volume; the square-root scale keeps upstate counties legible against the sheer density of Brooklyn and the Bronx, which together account for roughly 42% of all records statewide. Hover for exact counts, click for a detail card and to filter the dashboard.
+        </p>
+      </div>
+      <div>
+        <div class="county-list" id="countylist"></div>
+        <div class="drill" id="drill" style="margin-top:16px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="seclabel">Demographic composition</div>
+    <div class="sechead">Age &amp; sex composition</div>
+    <div class="secnote">Age bands derived from raw patient age at the patient-year grain, all years pooled.</div>
+    <div class="two">
+      <div class="panel">
+        <h3>Age distribution</h3>
+        <div class="age-row"><div>0–2 yrs</div><div class="ctrack"><div class="cfill agefill" style="width:13%"></div></div><div class="anum">5.8%</div></div>
+        <div class="age-row"><div>3–5 yrs</div><div class="ctrack"><div class="cfill agefill" style="width:12%"></div></div><div class="anum">5.4%</div></div>
+        <div class="age-row"><div>6–14 yrs</div><div class="ctrack"><div class="cfill agefill" style="width:33%"></div></div><div class="anum">14.8%</div></div>
+        <div class="age-row"><div>15–19 yrs</div><div class="ctrack"><div class="cfill agefill" style="width:20%"></div></div><div class="anum">9.0%</div></div>
+        <div class="age-row"><div>20–44 yrs</div><div class="ctrack"><div class="cfill agefill" style="width:100%"></div></div><div class="anum">45.4%</div></div>
+        <div class="age-row"><div>45–64 yrs</div><div class="ctrack"><div class="cfill agefill" style="width:34%"></div></div><div class="anum">15.4%</div></div>
+        <div class="age-row"><div>65+ yrs</div><div class="ctrack"><div class="cfill agefill" style="width:9%"></div></div><div class="anum">4.0%</div></div>
+      </div>
+      <div class="panel">
+        <h3>Sex distribution</h3>
+        <div style="display:flex; align-items:center; gap:22px; margin-top:8px;">
+          <svg width="104" height="104" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--panel2)" stroke-width="4"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--burgundy)" stroke-width="4" stroke-dasharray="56 44" stroke-dashoffset="25" stroke-linecap="round" class="donut-sweep"/>
+          </svg>
+          <div>
+            <div style="font-size:12.5px; margin-bottom:8px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--burgundy); margin-right:8px;"></span>Female: 56.0%</div>
+            <div style="font-size:12.5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--panel2); border:1px solid var(--border2); margin-right:8px;"></span>Male: 44.0%</div>
+          </div>
+        </div>
+        <div class="flagbox">
+          <span class="note-label">Context</span>
+          Median patient age is 27, consistent with SCD's known burden peak in young adulthood in the JAMA sample (18–29 and 30–49 bands together).
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="util">
+    <div class="seclabel">Care utilization</div>
+    <div class="sechead">Care mix &amp; fragmentation</div>
+    <div class="secnote">Inpatient vs. outpatient balance and how many patients span multiple facilities in a year.</div>
+    <div class="two">
+      <div class="panel">
+        <div class="statline"><span>Patient-years with ≥1 inpatient claim</span><b>54,432 (46.9%)</b></div>
+        <div class="statline"><span>Patient-years with ≥1 outpatient claim</span><b>96,340 (82.9%)</b></div>
+        <div class="statline"><span>Mean length of stay (IP)</span><b>5.5 days</b></div>
+        <div class="statline"><span>Median length of stay (IP)</span><b>3.9 days</b></div>
+        <div class="statline"><span>Patients seen at &gt;1 facility in a year</span><b>21,658 (18.6%)</b></div>
+        <div class="flagbox">
+          <span class="note-label">Data note</span>
+          2018 shows zero outpatient claims across every record — a gap in that year's extract, not a clinical finding.
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Top facilities by SCD volume</h3>
+        <div id="facbars"></div>
+        <div class="flagbox">
+          <span class="note-label">Concentration</span>
+          Top 6 facilities carry ~30% of all documented SCD care statewide despite 357 facilities total.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Working draft · interactive prototype for ISEE Lab review · not for external or MOH-facing distribution</div>
+    <div>Context: Iloegbu et al., JAMA Network Open 2026 (reference only, not a data source)</div>
+  </footer>
+
+  <div class="ip-panel">
+    <div>
+      <div class="ip-head">Data &amp; attribution</div>
+      <p>Derived from the New York State Statewide Planning and Research Cooperative System (SPARCS), a deidentified administrative dataset. Extract provided by Emeka Iloegbu for ISEE Lab review. Aggregate figures only: no patient-identifiable data appears in this dashboard.</p>
+    </div>
+    <div>
+      <div class="ip-head">Intellectual property</div>
+      <p>Analysis, visualization design, and code © ISEE Lab, NYU School of Global Public Health. Not for redistribution outside the lab without permission. Reference context drawn from Iloegbu et al., <em>JAMA Network Open</em>, 2026: cited for context, not used as a data source.</p>
+    </div>
+    <div>
+      <div class="ip-head">Status</div>
+      <p>Living draft; figures reflect the 2014–2024 extract and will shift as extraction continues. Treat all numbers as provisional until a final data freeze is confirmed.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const years = [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+
+const GEO = {
+  "Statewide":       { n:[4953,4914,4781,5296,5032,5085,4170,4424,4732,4823,5116], sev:[35.7,35.8,34.9,37.1,37.5,42.2,42.3,45.6,46.5,43.3,45.0], rom:[13.0,13.4,13.6,12.9,14.7,16.8,23.3,25.6,26.9,24.8,23.5], total:116200, mean_los:5.5, female:56.0, age:27 },
+  "Kings (Brooklyn)":{ n:[2528,2481,2569,2952,1207,1165,2246,2408,2429,2486,2574], sev:[32.6,36.5,36.8,35.5,36.7,43.1,44.0,45.8,44.3,44.1,46.7], rom:[11.1,12.2,12.5,10.9,12.8,15.5,24.1,26.4,25.3,23.9,25.2], total:25045, mean_los:5.4, female:58.3, age:28, fips:"36047", note:"Brooklyn carries the single largest share of SCD care in the state. Volume tracks NYC's Black population geography; severity sits near the statewide average." },
+  "Bronx":           { n:[2039,2226,2381,2671,1168,1262,2417,2495,2520,2518,2657], sev:[35.2,36.0,36.5,39.7,37.2,42.5,44.3,45.9,46.5,45.6,45.8], rom:[12.3,12.2,12.6,12.3,12.1,14.4,21.7,22.4,25.0,23.3,21.0], total:24354, mean_los:5.1, female:55.5, age:24, fips:"36005", note:"The Bronx has the youngest median age of any high-volume county (24) — a heavily pediatric-to-young-adult caseload, and the shortest mean stay." },
+  "Queens":          { n:[1189,1196,1222,1495,596,566,1292,1398,1387,1500,1439], sev:[34.0,36.3,33.5,34.3,38.4,38.5,39.0,44.9,45.7,40.8,44.1], rom:[10.6,14.3,16.3,13.4,18.6,17.6,21.4,25.6,28.3,24.7,23.8], total:13280, mean_los:5.7, female:55.3, age:28, fips:"36081", note:"Queens sits mid-pack on volume but runs a slightly elevated mortality-risk share relative to its severity — worth watching." },
+  "Manhattan":       { n:[890,879,1012,1166,382,397,955,985,1168,1260,1348], sev:[39.7,39.7,34.4,40.5,42.7,54.1,48.5,49.5,47.8,48.4,48.3], rom:[14.8,17.5,14.0,14.1,17.5,25.6,28.4,28.8,27.5,25.9,26.5], total:10442, mean_los:6.0, female:54.4, age:29, fips:"36061", note:"Manhattan runs the highest severity share of any borough and the longest NYC stay (6.0 days) — likely reflecting tertiary referral centres concentrating complex cases." },
+  "Nassau":          { n:[370,396,465,553,234,237,689,867,899,661,537], sev:[33.0,33.8,32.7,32.5,40.2,41.1,36.9,46.5,49.3,42.5,50.4], rom:[13.0,14.4,12.5,14.9,20.1,16.1,23.3,26.3,28.7,28.1,27.7], total:5908, mean_los:5.2, female:55.6, age:23, fips:"36059", note:"Largest Long Island caseload; a sharp severity climb after 2019 mirrors the Long Island mortality-risk signal in the JAMA paper." },
+  "Suffolk":         { n:[309,324,316,344,196,210,492,558,557,579,544], sev:[38.6,36.7,37.5,37.3,40.3,41.8,42.2,42.8,43.8,35.5,45.1], rom:[12.0,18.1,15.3,13.4,14.8,16.3,24.1,24.5,25.7,19.8,22.0], total:4429, mean_los:4.8, female:53.8, age:26, fips:"36103", note:"Shortest mean stay of the high-volume counties (4.8 days). Severity is steady but the year-to-year line is noisier at this sample size." },
+  "Westchester":     { n:[303,348,434,483,198,207,401,443,458,522,584], sev:[38.9,36.2,30.9,34.9,37.9,38.2,43.8,44.2,47.9,41.1,36.1], rom:[13.1,11.3,11.7,15.6,14.1,15.0,28.1,26.1,30.2,27.6,18.8], total:4381, mean_los:5.7, female:58.4, age:29, fips:"36119", note:"Highest female share (58%) alongside Erie. Mortality-risk peaked sharply in 2022 then dropped — a volatile line, read cautiously." },
+  "Erie":            { n:[315,292,310,472,190,174,399,416,382,405,405], sev:[41.0,37.0,38.4,39.6,33.2,45.7,44.3,48.5,50.9,42.4,42.2], rom:[16.3,8.9,13.8,12.1,14.7,19.7,26.2,26.9,28.8,26.0,25.5], total:3760, mean_los:5.8, female:59.4, age:25, fips:"36029", note:"Buffalo region — the largest upstate caseload and one of the highest severity shares statewide, peaking at 50.9% in 2022. Access to specialised SCD care upstate is a documented gap." },
+  "Monroe":          { n:[331,325,337,355,154,146,327,318,398,308,306], sev:[37.2,33.3,25.5,34.0,36.4,37.7,38.0,47.3,48.8,43.2,47.9], rom:[14.9,12.0,11.8,18.0,16.9,12.3,23.3,29.3,27.8,24.7,28.2], total:3305, mean_los:7.2, female:55.6, age:25, fips:"36055", note:"Rochester region — the longest mean stay in the entire dataset (7.2 days), well above the statewide 5.5. Worth a closer look at what's driving length of stay here." },
+  "Staten Island":   { n:[187,188,230,246,119,111,199,231,231,213,250], sev:[47.8,35.2,34.3,45.5,35.3,43.2,42.7,44.4,53.1,47.8,39.6], rom:[18.9,13.3,15.7,10.7,20.7,33.3,18.0,33.3,30.6,33.3,18.8], total:2205, mean_los:5.6, female:54.5, age:23, fips:"36085", note:"Smallest borough caseload — roughly 100–250 inpatient records per year, so the severity and mortality lines swing widely. Treat single-year spikes as noise, not trend." }
+};
+
+const STATE = GEO["Statewide"];
+const facilities = [
+  {name:"Montefiore – Moses Div.", n:10945},
+  {name:"Kings County Hosp.", n:6695},
+  {name:"NYP – Columbia", n:5241},
+  {name:"Mount Sinai Hosp.", n:4450},
+  {name:"Brookdale Hosp.", n:3513},
+  {name:"LIJ Medical Center", n:3135}
+];
+
+let activeGeo = "Statewide";
+let idx0 = 0, idx1 = years.length - 1;
+
+const X0=60, X1=1050, Y0=180, Y1=10, VMAX=60;
+function xOf(i){ return X0 + (X1-X0)*i/(years.length-1); }
+function yOf(v){ return Y0 - (Y0-Y1)*(v/VMAX); }
+
+let firstDraw = true;
+function drawTrend(){
+  const g = GEO[activeGeo];
+  const sevPts = years.map((y,i)=>`${xOf(i)},${yOf(g.sev[i])}`).join(' ');
+  const romPts = years.map((y,i)=>`${xOf(i)},${yOf(g.rom[i])}`).join(' ');
+  const sl = document.getElementById('sevline'), rl = document.getElementById('romline');
+  const sa = document.getElementById('sevarea'), ra = document.getElementById('romarea');
+  if(!firstDraw){
+    sl.classList.remove('trend-draw'); rl.classList.remove('trend-draw');
+    sa.classList.remove('area-fade'); ra.classList.remove('area-fade');
+  }
+  sl.setAttribute('points', sevPts);
+  rl.setAttribute('points', romPts);
+  sa.setAttribute('points', `${X0},${Y0} ${sevPts} ${X1},${Y0}`);
+  ra.setAttribute('points', `${X0},${Y0} ${romPts} ${X1},${Y0}`);
+  document.getElementById('trend-title').textContent = activeGeo;
+  drawDots();
+  firstDraw = false;
+}
+
+function drawDots(){
+  const g = GEO[activeGeo];
+  const dots = document.getElementById('dots');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let html = '';
+  years.forEach((y,i)=>{
+    const delay = (reduced || !firstDraw) ? 0 : (1.3 + i*0.05);
+    const anim = (reduced || !firstDraw) ? '' : `animation:popDot .3s ease-out ${delay}s both; transform-box:fill-box; transform-origin:center;`;
+    html += `<circle class="pt" data-i="${i}" data-series="sev" cx="${xOf(i)}" cy="${yOf(g.sev[i])}" r="3.5" fill="#9C3245" style="${anim}"/>`;
+    html += `<circle class="pt" data-i="${i}" data-series="rom" cx="${xOf(i)}" cy="${yOf(g.rom[i])}" r="3.5" fill="#C9A24B" style="${anim}"/>`;
+  });
+  dots.innerHTML = html;
+}
+
+document.getElementById('yrlabels').innerHTML = years.map((y,i)=>`<text x="${xOf(i)}" y="205" text-anchor="middle">${y}</text>`).join('');
+
+const trendsvg = document.getElementById('trendsvg');
+const chartTip = document.getElementById('chart-tip');
+trendsvg.addEventListener('click', e=>{
+  const pt = e.target.closest('.pt');
+  if(!pt){ chartTip.classList.remove('show'); return; }
+  const i = +pt.dataset.i;
+  const g = GEO[activeGeo];
+  chartTip.innerHTML = `
+    <div class="tip-yr">${activeGeo} · ${years[i]}</div>
+    <div class="tip-row"><span class="k">Major severity</span><span class="v" style="color:#C1546A">${g.sev[i]}%</span></div>
+    <div class="tip-row"><span class="k">Major mortality-risk</span><span class="v" style="color:#C9A24B">${g.rom[i]}%</span></div>
+    <div class="tip-row"><span class="k">IP records</span><span class="v">${g.n[i].toLocaleString()}</span></div>`;
+  const wrapRect = trendsvg.closest('.slider-wrap').getBoundingClientRect();
+  const r = pt.getBoundingClientRect();
+  let x = r.left - wrapRect.left + r.width/2;
+  let ty = r.top - wrapRect.top;
+  chartTip.classList.add('show');
+  const tw = chartTip.offsetWidth, th = chartTip.offsetHeight;
+  chartTip.style.left = Math.max(8, Math.min(x - tw/2, wrapRect.width - tw - 8)) + 'px';
+  chartTip.style.top = (ty - th - 10) + 'px';
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#trendsvg')) chartTip.classList.remove('show');
+});
+
+const trackwrap = document.getElementById('trackwrap');
+const h0 = document.getElementById('h0'), h1 = document.getElementById('h1');
+const b0 = document.getElementById('b0'), b1 = document.getElementById('b1');
+const trackfill = document.getElementById('trackfill');
+
+function pctFor(i){ return i/(years.length-1)*100; }
+function layoutHandles(){
+  h0.style.left = pctFor(idx0)+'%';
+  h1.style.left = pctFor(idx1)+'%';
+  trackfill.style.left = pctFor(idx0)+'%';
+  trackfill.style.width = (pctFor(idx1)-pctFor(idx0))+'%';
+  const dl = document.getElementById('dim-left');
+  const dr = document.getElementById('dim-right');
+  dl.setAttribute('x', 60);
+  dl.setAttribute('width', Math.max(0, xOf(idx0) - 60));
+  dr.setAttribute('x', xOf(idx1));
+  dr.setAttribute('width', Math.max(0, 1050 - xOf(idx1)));
+}
+function updateMetrics(){
+  const g = GEO[activeGeo];
+  document.getElementById('yr-range').textContent = years[idx0]+' – '+years[idx1];
+  let nSum=0, sevSum=0, romSum=0, cnt=0;
+  for(let i=idx0;i<=idx1;i++){ nSum+=g.n[i]; sevSum+=g.sev[i]; romSum+=g.rom[i]; cnt++; }
+  document.getElementById('m-n').textContent = nSum.toLocaleString();
+  document.getElementById('m-sev').textContent = (sevSum/cnt).toFixed(1)+'%';
+  document.getElementById('m-rom').textContent = (romSum/cnt).toFixed(1)+'%';
+}
+function refresh(){ layoutHandles(); updateMetrics(); }
+
+function dragHandle(handle, bubble, isStart){
+  handle.addEventListener('pointerdown', e=>{
+    handle.setPointerCapture(e.pointerId);
+    bubble.classList.add('show');
+    bubble.textContent = years[isStart?idx0:idx1];
+    chartTip.classList.remove('show');
+    function move(ev){
+      const rect = trackwrap.getBoundingClientRect();
+      let p = Math.max(0, Math.min(1, (ev.clientX - rect.left)/rect.width));
+      let i = Math.round(p*(years.length-1));
+      if(isStart){ idx0 = Math.min(i, idx1); } else { idx1 = Math.max(i, idx0); }
+      bubble.textContent = years[isStart?idx0:idx1];
+      refresh();
+    }
+    function up(){
+      bubble.classList.remove('show');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+dragHandle(h0, b0, true);
+dragHandle(h1, b1, false);
+
+const countyNames = Object.keys(GEO).filter(n => n !== "Statewide");
+const maxN = Math.max(...countyNames.map(n => GEO[n].total));
+
+document.getElementById('countylist').innerHTML =
+  `<div class="county-row" data-name="Statewide" style="border-bottom:1px solid var(--border); margin-bottom:4px;">
+     <div class="lbl" style="color:var(--violet); font-weight:500;">← Statewide (reset)</div><div></div><div></div>
+   </div>` +
+  countyNames.map(n => `
+   <div class="county-row" data-name="${n}">
+     <div class="lbl">${n}</div>
+     <div class="ctrack"><div class="cfill" style="width:${(GEO[n].total/maxN*100).toFixed(0)}%"></div></div>
+     <div class="num">${GEO[n].total.toLocaleString()}</div>
+   </div>`).join('');
+
+function fillDrillPanel(name){
+  const g = GEO[name];
+  const pooled = arr => (arr.reduce((a,b)=>a+b,0)/arr.length);
+  const sevAvg = pooled(g.sev), romAvg = pooled(g.rom);
+  const dSev = (sevAvg - pooled(STATE.sev)).toFixed(1);
+  const dRom = (romAvg - pooled(STATE.rom)).toFixed(1);
+  const isState = name === "Statewide";
+  document.getElementById('drill').innerHTML = `
+    <div class="dname">${name}</div>
+    <div class="dsub">${g.total.toLocaleString()} patient-years · 2014–2024</div>
+    <div class="dstat"><span>Mean length of stay</span><b>${g.mean_los} days</b></div>
+    <div class="dstat"><span>Major/extreme severity (avg)</span><b>${sevAvg.toFixed(1)}%</b></div>
+    ${isState ? '' : `<div class="dcompare">${dSev>=0?'+':''}${dSev} pts vs. statewide</div>`}
+    <div class="dstat"><span>Major/extreme mortality risk (avg)</span><b>${romAvg.toFixed(1)}%</b></div>
+    ${isState ? '' : `<div class="dcompare">${dRom>=0?'+':''}${dRom} pts vs. statewide</div>`}
+    <div class="dstat"><span>Female share</span><b>${g.female}%</b></div>
+    <div class="dstat"><span>Median age</span><b>${g.age}</b></div>`;
+}
+
+function selectGeo(name){
+  activeGeo = name;
+  drawTrend();
+  updateMetrics();
+  fillDrillPanel(name);
+  highlightMap(name);
+  document.getElementById('chart-tip').classList.remove('show');
+  document.querySelectorAll('.county-row').forEach(el =>
+    el.classList.toggle('active', el.dataset.name === name && name !== "Statewide"));
+}
+
+document.getElementById('countylist').addEventListener('click', e=>{
+  const row = e.target.closest('.county-row');
+  if(row) selectGeo(row.dataset.name);
+});
+
+const maxFac = Math.max(...facilities.map(f=>f.n));
+document.getElementById('facbars').innerHTML = facilities.map(f=>`
+  <div class="county-row" style="cursor:default; grid-template-columns:150px 1fr 52px;">
+    <div class="lbl" style="font-size:12px">${f.name}</div>
+    <div class="ctrack"><div class="cfill" style="width:${(f.n/maxFac*100).toFixed(0)}%; background:var(--gold)"></div></div>
+    <div class="num">${f.n.toLocaleString()}</div>
+  </div>`).join('');
+
+function animateCount(el, target, dur=1100){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){ el.textContent = target.toLocaleString(); return; }
+  const start = performance.now();
+  function tick(t){
+    const p = Math.min(1,(t-start)/dur);
+    el.textContent = Math.round(target*(1-Math.pow(1-p,3))).toLocaleString();
+    if(p<1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+setTimeout(()=>{
+  animateCount(document.getElementById('ctr-rows'), 116200);
+  animateCount(document.getElementById('ctr-patients'), 43750);
+}, 400);
+
+if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  window.addEventListener('scroll', ()=>{
+    document.getElementById('wm-svg').style.transform = `translate(-50%, ${window.scrollY * 0.04}px)`;
+  }, {passive:true});
+}
+
+function highlightMap(name){
+  d3.selectAll(".mapc").attr("stroke","rgba(242,236,230,0.12)").attr("stroke-width",0.6);
+  const g = GEO[name];
+  if(g && g.fips){ d3.select(".mapc-"+g.fips).attr("stroke","#C9A24B").attr("stroke-width",2).raise(); }
+}
+
+const mapTip = document.getElementById('map-tip');
+function showMapTip(name, clientX, clientY){
+  const g = GEO[name];
+  if(!g) return;
+  const pooled = arr => (arr.reduce((a,b)=>a+b,0)/arr.length);
+  mapTip.innerHTML = `
+    <div class="mt-name">${name}</div>
+    <div class="mt-row"><span class="k">Patient-years</span><span class="v">${g.total.toLocaleString()}</span></div>
+    <div class="mt-row"><span class="k">Avg. major severity</span><span class="v">${pooled(g.sev).toFixed(1)}%</span></div>
+    <div class="mt-row"><span class="k">Avg. mortality-risk</span><span class="v">${pooled(g.rom).toFixed(1)}%</span></div>
+    <div class="mt-row"><span class="k">Mean stay · median age</span><span class="v">${g.mean_los}d · ${g.age}</span></div>
+    <div class="mt-note">${g.note || ''}</div>`;
+  const panel = document.querySelector('.map-panel').getBoundingClientRect();
+  mapTip.classList.add('show');
+  const tw = mapTip.offsetWidth, th = mapTip.offsetHeight;
+  let x = clientX - panel.left + 14;
+  let y = clientY - panel.top + 14;
+  if(x + tw > panel.width - 8) x = clientX - panel.left - tw - 14;
+  if(y + th > panel.height - 8) y = panel.height - th - 8;
+  mapTip.style.left = Math.max(8, x) + 'px';
+  mapTip.style.top = Math.max(8, y) + 'px';
+}
+
+async function buildMap(){
+  try{
+    const topo = await fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json").then(r=>r.json());
+    const NYFP = "36";
+    const counties = topojson.feature(topo, topo.objects.counties).features.filter(f => f.id.startsWith(NYFP));
+    const svg = d3.select("#nymap");
+    const projection = d3.geoMercator().fitSize([600,460], {type:"FeatureCollection", features:counties});
+    const path = d3.geoPath(projection);
+    const byFips = {};
+    Object.entries(GEO).forEach(([name,g])=>{ if(g.fips) byFips[g.fips] = {name, total:g.total}; });
+    const maxTotal = d3.max(Object.values(byFips), d=>d.total);
+    const color = t => d3.interpolate("#241A2E", "#9C3245")(Math.sqrt(t)/Math.sqrt(maxTotal));
+    svg.selectAll("path").data(counties).join("path")
+      .attr("d", path)
+      .attr("fill", d => byFips[d.id] ? color(byFips[d.id].total) : "#1C1523")
+      .attr("stroke", "rgba(242,236,230,0.12)")
+      .attr("stroke-width", 0.6)
+      .attr("class", d => "mapc" + (byFips[d.id] ? " mapc-"+d.id : ""))
+      .style("cursor", d => byFips[d.id] ? "pointer" : "default")
+      .on("mousemove", (e,d)=>{
+        const rec = byFips[d.id];
+        document.getElementById('map-hover').textContent = rec ? `${rec.name} — ${rec.total.toLocaleString()} patient-years` : "";
+      })
+      .on("mouseleave", ()=>{ document.getElementById('map-hover').textContent = ""; })
+      .on("click", (e,d)=>{
+        const rec = byFips[d.id];
+        if(rec){ selectGeo(rec.name); showMapTip(rec.name, e.clientX, e.clientY); }
+      });
+    const stateOutline = topojson.merge(topo, topo.objects.counties.geometries.filter(g => g.id.startsWith(NYFP)));
+    const wmProj = d3.geoMercator().fitSize([800,600], stateOutline);
+    document.getElementById('wm-ny-path').setAttribute("d", d3.geoPath(wmProj)(stateOutline));
+  }catch(err){
+    document.getElementById('map-hover').textContent = "Map unavailable offline: county list still works";
+  }
+}
+document.getElementById('nymap').addEventListener('mouseleave', ()=>{ /* keep tip until another click */ });
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#nymap') && !e.target.closest('.county-row')) mapTip.classList.remove('show');
+});
+
+buildMap();
+refresh();
+selectGeo("Statewide");
+</script>
+</body>
+</html>
