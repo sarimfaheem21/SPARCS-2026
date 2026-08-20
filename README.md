@@ -9,6 +9,7 @@ What this is
 A working prototype for ISEE Lab review. It pulls together five views of the SCD data including severity and mortality-risk trends, geographic distribution, demographics, and care utilization, all into a single interactive page. The goal at this stage is accessibility: stakeholders and admin can open the link on any device (phone, laptop, meeting-room screen) and click through a draft without needing a login, an install, or a BI-tool license.
 
 What you can do in it
+
 Drag the year range to filter the severity/mortality-risk trend
 Click any county - on the map or in the list - to re-slice every view for that county
 Click a point on the trend chart, or a county on the map, for detail
